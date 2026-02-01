@@ -1,7 +1,30 @@
 # Changelog
 
-## Version 5.5.6.9000
+## Version 6.0.0
+* Update Makevars for ARM version of Windows.
+* Sanitize internal usage of `do.call` to avoid huge backtraces.
+* Support lower triangular `distmat` objects for symmetric distances (#77) - breaking change.
+
+## Version 5.5.12
+* Remove explicit C++ requirements.
+
+## Version 5.5.11
+* Documentation update (#61).
+* Specify minimum supported version of package `Matrix`.
+
+## Version 5.5.10
+* Enhanced `compare_clusterings` to allow complex parameters in lists (#59).
+
+## Version 5.5.9
+* Removed some deprecated interfaces from the C++ code.
+
+## Version 5.5.8
+* For `compare_clusterings`, fixed a bug that caused the order of columns "k" and "method" to be wrong in the data frame with results for hierarchical configurations.
+
+## Version 5.5.7
 * Series order is now preserved in plots of included shiny apps.
+* The optimization in `sdtw_cent` now uses `stats::optim` by default.
+* Dropped strong dependency on `bigmemory` in case it is archived. It can still be used if available.
 
 ## Version 5.5.6
 * Adjustments for future R 4.0.0 version: matrices now also inherit from `array`.

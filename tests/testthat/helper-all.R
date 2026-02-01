@@ -1,7 +1,8 @@
 data(uciCT)
 options(deparse.max.lines = 2L)
 suppressWarnings(RNGversion("3.5.0"))
-options(dtwclust_sdtw_cent_return_nloptr = FALSE)
+options(dtwclust_sdtw_cent_return_attrs = FALSE,
+        dtwclust_suggest_bigmemory = FALSE)
 
 # environment to save objects for regression tests
 persistent <- new.env()
@@ -46,4 +47,28 @@ expect_equal_slots <- function(current, target, slots = c("cluster", "centroids"
                      ...,
                      info = paste("slot =", object_slot))
     }
+}
+
+expect_known_rds <- function(object, path, ..., info = NULL, update = TRUE) {
+    file <- if (missing(path)) paste0("rds/", rlang::enexpr(object)) else path
+
+    if (!file.exists(file)) {
+        warning("Creating reference value", call. = FALSE)
+        saveRDS(object, file, version = 2)
+        succeed()
+    }
+    else {
+        ref_val <- readRDS(file)
+        comp <- compare(object, ref_val, ...)
+        if (update && !comp$equal) {
+            saveRDS(object, file, version = version)
+        }
+        expect(comp$equal,
+               sprintf("%s has changed from known value recorded in %s.\n%s",
+                       file,
+                       encodeString(file, quote = "'"),
+                       comp$message),
+               info = info)
+    }
+    invisible(object)
 }

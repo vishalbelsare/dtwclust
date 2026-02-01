@@ -1,5 +1,3 @@
-context("Parallel tests")
-
 # =================================================================================================
 # run all tests with a parallel backend
 # =================================================================================================
@@ -33,11 +31,12 @@ test_that("Parallel computation gives the same results as sequential", {
         # to test that other RNGkinds won't affect
         RNGkind("default")
         # for regression tests' comparisons
-        options(dtwclust_sdtw_cent_return_nloptr = FALSE)
+        options(dtwclust_sdtw_cent_return_attrs = FALSE)
     }))
     registerDoParallel(cl)
 
     # Filter excludes files that have "parallel" in them, otherwise it would be recursive
+    options(testthat.default_reporter = "summary")
     res <- test_dir("./", filter = "parallel", invert = TRUE)
 
     sapply(clusterEvalQ(cl, RNGkind()[1L]), function(current_rngkind) {

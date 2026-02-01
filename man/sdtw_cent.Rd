@@ -10,8 +10,8 @@ sdtw_cent(
   gamma = 0.01,
   weights = rep(1, length(series)),
   ...,
-  opts = list(algorithm = "NLOPT_LD_LBFGS", maxeval = 20L),
-  error.check = TRUE
+  error.check = TRUE,
+  opts = list(algorithm = "NLOPT_LD_LBFGS", maxeval = 20L)
 )
 }
 \arguments{
@@ -27,42 +27,40 @@ characteristics as the matrices in \code{series}.}
 
 \item{weights}{A vector of weights for each element of \code{series}.}
 
-\item{...}{Further arguments for \code{\link[nloptr:nloptr]{nloptr::nloptr()}} (except \code{opts} and \code{...}).}
-
-\item{opts}{List of options to pass to \code{\link[nloptr:nloptr]{nloptr::nloptr()}}.}
+\item{...}{Further arguments for the optimization backend (except \code{opts} for \code{nloptr}, \code{control}
+for \code{optim}, and \code{...} for both).}
 
 \item{error.check}{Logical indicating whether the function should try to detect inconsistencies
 and give more informative errors messages. Also used internally to avoid repeating checks.}
+
+\item{opts}{List of options to pass to \code{nloptr} or \code{\link[stats:optim]{stats::optim()}}'s \code{control}. The defaults in
+the function's formals are for \code{nloptr}, but the value will be adjusted for \code{optim} if needed.}
 }
 \value{
-The resulting centroid, with attribute \code{nloptr_results} specifying the optimization
-results (except for \code{solution}, which is the returned centroid).
+The resulting centroid, with the optimization results as attributes (except for the
+returned centroid).
 }
 \description{
 Soft-DTW centroid function as proposed in Cuturi and Blondel (2017).
 }
 \details{
-Note that you can trace the optimization by specifying \code{print_level > 0} in \code{opts}.
+This function can delegate the optimization to the \pkg{nloptr} package. For that to happen, you
+must load it with either \code{\link[base:library]{base::library()}} or \code{\link[base:ns-load]{base::loadNamespace()}}. If the aforementioned is
+not fulfilled, the function will delegate to \code{\link[stats:optim]{stats::optim()}}.
 }
 \section{Parallel Computing}{
 
+Please note that running tasks in parallel does \strong{not} guarantee faster computations.
+The overhead introduced is sometimes too large, and it's better to run tasks sequentially.
 
-Please note that running tasks in parallel does \strong{not} guarantee faster computations. The
-overhead introduced is sometimes too large, and it's better to run tasks sequentially.
+This function uses the \link[RcppParallel:RcppParallel-package]{RcppParallel} package for parallelization.
+It uses all available threads by default (see \code{\link[RcppParallel:setThreadOptions]{RcppParallel::defaultNumThreads()}}),
+but this can be changed by the user with \code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}.
 
-This function uses the \code{\link[RcppParallel:RcppParallel-package]{RcppParallel}} package
-for parallelization. It uses all available threads by default (see
-\code{\link[RcppParallel:defaultNumThreads]{RcppParallel::defaultNumThreads()}}), but this can
-be changed by the user with
-\code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}.
-
-An exception to the above is when this function is called within a
-\code{\link[foreach:foreach]{foreach}} parallel loop \strong{made by dtwclust}. If the parallel
-workers do not have the number of threads explicitly specified, this function will default to 1
-thread per worker. See the parallelization vignette for more information
-(\code{browseVignettes("dtwclust")}).
-
-
+An exception to the above is when it is called within a \code{\link[foreach:foreach]{foreach}} parallel loop \strong{made by dtwclust}.
+If the parallel workers do not have the number of threads explicitly specified,
+this function will default to 1 thread per worker.
+See the parallelization vignette for more information - \code{browseVignettes("dtwclust")}
 
 For unknown reasons, this function has returned different results (in the order of 1e-6) when
 using multi-threading in x64 Windows installations in comparison to other environments (using

@@ -30,19 +30,26 @@
 #'   - The second argument is called `centroids` (inconsistent with [proxy::dist()]).
 #'   - If `control$distmat` is *not* `NULL`, the function will try to subset it.
 #'   - If `control$symmetric` is `TRUE`, `centroids` is `NULL`, *and* there is no argument
-#'   `pairwise` that is `TRUE`, only half the distance matrix will be computed.
-#'     + If the distance was registered in [proxy::pr_DB] with `loop = TRUE` and more than one
-#'     parallel worker is detected, the computation will be in parallel (using multi-processing with
-#'     [foreach::foreach()]), otherwise it will be sequential with [proxy::dist()].
-#'   - The function always returns a `crossdist` matrix.
+#'     `pairwise` that is `TRUE`, only half the distance matrix will be computed.
 #'
 #'   Note that all distances implemented as part of \pkg{dtwclust} have custom proxy loops that use
 #'   multi-threading independently of \pkg{foreach}, so see their respective documentation to see
 #'   what optimizations apply to each one.
 #'
-#'   For distances *not* included in \pkg{dtwclust}, the symmetric, parallel case mentioned above
-#'   makes chunks for parallel workers, but they are not perfectly balanced, so some workers might
-#'   finish before the others.
+#'   For distances *not* included in \pkg{dtwclust}, the computation can be in parallel using
+#'   multi-processing with [foreach::foreach()]. If you install and load or attach (see
+#'   [base::library()] or [base::loadNamespace()]) the \pkg{bigmemory} package, the function will
+#'   take advantage of said package when all of the following conditions are met, reducing the
+#'   overhead of data copying across processes:
+#'
+#'   - `control$symmetric` is `TRUE`
+#'   - `centroids` is `NULL`
+#'   - `pairwise` is `FALSE` or `NULL`
+#'   - The distance was registered in [proxy::pr_DB] with `loop = TRUE`
+#'   - A parallel backend with more than 1 worker has been registered with \pkg{foreach}
+#'
+#'   This symmetric, parallel case makes chunks for parallel workers, but they are not perfectly
+#'   balanced, so some workers might finish before the others.
 #'
 #' @section Centroid function:
 #'
@@ -112,39 +119,40 @@ f_cluster <- function(distmat, m) {
 # Custom initialize
 # ==================================================================================================
 
+#' @importFrom methods as
 #' @importFrom methods callNextMethod
 #' @importFrom methods initialize
 #' @importFrom methods setMethod
+#' @importFrom rlang enexprs
+#' @importFrom rlang env_bind
 #'
 setMethod("initialize", "tsclustFamily",
           function(.Object, dist, allcent, ..., control = list(), fuzzy = FALSE) {
-              dots <- list(...)
-              dots$.Object <- .Object
+              rlang::env_bind(environment(), ...)
+              dots <- rlang::enexprs(...)
+              dots$.Object <- quote(.Object)
               if (!missing(dist)) {
-                  if (is.character(dist))
-                      dots$dist <- ddist2(dist, control)
-                  else
-                      dots$dist <- dist
+                  if (is.character(dist)) dist <- ddist2(dist, control)
+                  dots$dist <- quote(dist)
               }
               if (fuzzy) {
-                  dots$cluster <- f_cluster
+                  dots$cluster <- quote(f_cluster)
                   if (!missing(allcent) && is.character(allcent))
                       allcent <- match.arg(allcent, c("fcm", "fcmdd"))
               }
               if (!missing(allcent)) {
                   if (is.character(allcent)) {
                       if (allcent %in% c("pam", "fcmdd")) {
-                          if (!is.null(control$distmat) && !inherits(control$distmat, "Distmat"))
-                              control$distmat <- Distmat$new( # see S4-Distmat.R
-                                  distmat = base::as.matrix(control$distmat)
-                              )
+                          if (!is.null(control$distmat) && !inherits(control$distmat, "Distmat")) {
+                              control$distmat <- methods::as(control$distmat, "Distmat")
+                          }
                       }
-                      dots$allcent <- all_cent2(allcent, control)
+                      allcent <- all_cent2(allcent, control)
                   }
-                  else if (is.function(allcent))
-                      dots$allcent <- allcent
-                  else
+                  else if (!is.function(allcent)) {
                       stop("Centroid definition must be either a function or a character")
+                  }
+                  dots$allcent <- quote(allcent)
               }
-              do.call(methods::callNextMethod, dots, TRUE)
+              do.call(methods::callNextMethod, dots)
           })

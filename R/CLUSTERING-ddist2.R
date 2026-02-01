@@ -90,11 +90,11 @@ split_parallel_symmetric <- function(n, num_workers, adjust = 0L) {
 }
 
 # calculate only half the distance matrix in parallel
-#' @importFrom bigmemory attach.big.matrix
 #' @importFrom proxy dist
 #'
 parallel_symmetric <- function(d_desc, ids, x, distance, dots) {
-    dd <- bigmemory::attach.big.matrix(d_desc)
+    attach.big.matrix <- get("attach.big.matrix", asNamespace("bigmemory"), mode = "function")
+    dd <- attach.big.matrix(d_desc)
     if (isTRUE(attr(ids, "trimat"))) {
         # assign upper part of lower triangular
         ul <- ids$ul
@@ -140,8 +140,6 @@ parallel_symmetric <- function(d_desc, ids, x, distance, dots) {
 # Return a custom distance function that calls registered functions of proxy
 # ==================================================================================================
 
-#' @importFrom bigmemory big.matrix
-#' @importFrom bigmemory describe
 #' @importFrom proxy dist
 #' @importFrom proxy pr_DB
 #'
@@ -149,9 +147,10 @@ ddist2 <- function(distance, control) {
     # I need to re-register any custom distances in each parallel worker
     dist_entry <- proxy::pr_DB$get_entry(distance)
     symmetric <- isTRUE(control$symmetric)
+    warned <- FALSE
 
     # variables/functions from the parent environments that should be exported
-    export <- c("check_consistency", "quoted_call", "parallel_symmetric", "distance", "dist_entry")
+    export <- c("check_consistency", "do_call", "quoted_call", "parallel_symmetric", "distance", "dist_entry")
 
     ret <- function(result, ...) {
         ret <- structure(result, method = toupper(distance), ...)
@@ -180,21 +179,26 @@ ddist2 <- function(distance, control) {
 
         if (!dist_entry$loop) {
             # CUSTOM LOOP, LET THEM HANDLE OPTIMIZATIONS
-            dm <- base::as.matrix(quoted_call(
+            dm <- quoted_call(
                 proxy::dist, x = x, y = centroids, method = distance, dots = dots
-            ))
+            )
 
             if (isTRUE(dots$pairwise)) {
                 dim(dm) <- NULL
                 return(ret(dm, class = "pairdist"))
             }
+            else if (inherits(dm, "dist")) {
+                return(ret(dm))
+            }
             else {
-                return(ret(dm, class = "crossdist"))
+                return(ret(base::as.matrix(dm), class = "crossdist"))
             }
         }
 
         if (is.null(centroids) && symmetric && !isTRUE(dots$pairwise)) {
-            if (foreach::getDoParWorkers() > 1L) {
+            multiple_workers <- foreach::getDoParWorkers() > 1L
+
+            if (multiple_workers && isNamespaceLoaded("bigmemory")) {
                 # WHOLE SYMMETRIC DISTMAT IN PARALLEL
                 # Only half of it is computed
                 # proxy can do this if y = NULL, but not in parallel
@@ -202,8 +206,10 @@ ddist2 <- function(distance, control) {
 
                 # undo bigmemory's seed change, backwards reproducibility
                 seed <- get0(".Random.seed", .GlobalEnv, mode = "integer")
-                d <- bigmemory::big.matrix(len, len, "double", 0)
-                d_desc <- bigmemory::describe(d)
+                big.matrix <- get("big.matrix", asNamespace("bigmemory"), mode = "function")
+                bigmemory_describe <- get("describe", asNamespace("bigmemory"), mode = "function")
+                d <- big.matrix(len, len, "double", 0)
+                d_desc <- bigmemory_describe(d)
                 assign(".Random.seed", seed, .GlobalEnv)
 
                 ids <- integer() # "initialize", so CHECK doesn't complain about globals
@@ -216,7 +222,7 @@ ddist2 <- function(distance, control) {
                     .export = export
                 ) %op% {
                     if (!check_consistency(dist_entry$names[1L], "dist")) {
-                        do.call(proxy::pr_DB$set_entry, dist_entry, TRUE) # nocov
+                        do_call(proxy::pr_DB$set_entry, dist_entry) # nocov
                     }
 
                     parallel_symmetric(d_desc, ids, x, distance, dots)
@@ -226,13 +232,24 @@ ddist2 <- function(distance, control) {
                 # coerce to normal matrix
                 return(ret(d[,], class = "crossdist", dimnames = list(names(x), names(x))))
             }
-            else {
-                # WHOLE SYMMETRIC DISTMAT WITH CUSTOM LOOP OR SEQUENTIAL proxy LOOP
-                dm <- base::as.matrix(quoted_call(
+            else if (multiple_workers && !warned && isTRUE(getOption("dtwclust_suggest_bigmemory", TRUE))) {
+                warned <<- TRUE
+                warning("Package 'bigmemory' is not available, cannot parallelize computation with '",
+                        distance,
+                        "'. Use options(dtwclust_suggest_bigmemory = FALSE) to avoid this warning.")
+            }
+            else if (!multiple_workers) {
+                # WHOLE SYMMETRIC DISTMAT WITHOUT CUSTOM LOOP OR USING SEQUENTIAL proxy LOOP
+                dm <- quoted_call(
                     proxy::dist, x = x, y = NULL, method = distance, dots = dots
-                ))
+                )
 
-                return(ret(dm, class = "crossdist"))
+                if (inherits(dm, "dist")) {
+                    return(ret(dm))
+                }
+                else {
+                    return(ret(base::as.matrix(dm), class = "crossdist"))
+                }
             }
         }
 
@@ -260,7 +277,7 @@ ddist2 <- function(distance, control) {
             .export = export
         ) %op% {
             if (!check_consistency(dist_entry$names[1L], "dist")) {
-                do.call(proxy::pr_DB$set_entry, dist_entry, TRUE)
+                do_call(proxy::pr_DB$set_entry, dist_entry)
             }
 
             quoted_call(proxy::dist, x = x, y = centroids, method = distance, dots = dots)

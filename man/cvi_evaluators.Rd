@@ -27,10 +27,16 @@ on the cluster validity indices available in \code{\link[=cvi]{cvi()}} for scori
 for picking. They always assume that no errors occurred.
 
 The scoring function takes the CVIs that are to be minimized and "inverts" them by taking their
-reciprocal so that maximization can be considered. Its ellipsis (\code{...}) is passed to \code{\link[=cvi]{cvi()}}.
+reciprocal so that maximization can be considered uniformly for the purpose of majority voting.
+Its ellipsis (\code{...}) is passed to \code{\link[=cvi]{cvi()}}.
 
 The picking function returns the best configuration if \code{return.objects} is \code{FALSE}, or a list
 with the chosen \linkS4class{TSClusters} object and the corresponding configuration otherwise.
 
 Refer to the examples in \code{\link[=compare_clusterings]{compare_clusterings()}}.
+}
+\note{
+To avoid ambiguity, if this function is used, configurations for both fuzzy and crisp clusterings
+should \emph{not} be provided in the same call to \code{\link[=compare_clusterings]{compare_clusterings()}}. In such cases the scoring
+function may fail entirely, e.g. if it was created with \code{type = "valid"}.
 }

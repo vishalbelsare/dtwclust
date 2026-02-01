@@ -7,9 +7,11 @@
 #'
 #' @param x A univariate time series.
 #' @param window.size Window size for envelope calculation. See details.
-#' @template error-check
+#' @param error.check `r roxygen_error_check_param()`
 #'
-#' @template window
+#' @details
+#'
+#' `r roxygen_window_details()`
 #'
 #' @return A list with two elements (lower and upper envelopes respectively): `lower` and `upper`.
 #'
@@ -21,8 +23,7 @@
 #'
 #' Lemire D (2009). ``Faster retrieval with a two-pass dynamic-time-warping lower bound .'' *Pattern
 #' Recognition*, **42**(9), pp. 2169 - 2180. ISSN 0031-3203,
-#' \url{http://dx.doi.org/10.1016/j.patcog.2008.11.030},
-#' \url{http://www.sciencedirect.com/science/article/pii/S0031320308004925}.
+#' \doi{10.1016/j.patcog.2008.11.030}.
 #'
 #' @examples
 #'

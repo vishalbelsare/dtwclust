@@ -14,7 +14,7 @@
 #'   the matrices in `X`. **It will be z-normalized**.
 #' @param znorm Logical flag. Should z-scores be calculated for `X` before processing?
 #' @param ... Further arguments for [zscore()].
-#' @template error-check
+#' @param error.check `r roxygen_error_check_param()`
 #'
 #' @details
 #'
@@ -36,7 +36,7 @@
 #'
 #' Paparrizos J and Gravano L (2015). ``k-Shape: Efficient and Accurate Clustering of Time Series.''
 #' In *Proceedings of the 2015 ACM SIGMOD International Conference on Management of Data*, series
-#' SIGMOD '15, pp. 1855-1870. ISBN 978-1-4503-2758-9, \url{http://doi.org/10.1145/2723372.2737793}.
+#' SIGMOD '15, pp. 1855-1870. ISBN 978-1-4503-2758-9, \doi{10.1145/2723372.2737793}.
 #'
 #' @seealso
 #'
@@ -73,7 +73,7 @@ shape_extraction <- function(X, centroid = NULL, znorm = FALSE, ..., error.check
         new_c <- Map(mv$series, mv$cent, f = function(xx, cc, ...) {
             new_c <- shape_extraction(xx, cc, znorm = znorm, ..., error.check = FALSE)
         })
-        return(do.call(cbind, new_c, TRUE))
+        return(call_cbind(new_c))
     }
 
     Xz <- if (znorm) zscore(X, ..., error.check = FALSE) else X
@@ -87,18 +87,18 @@ shape_extraction <- function(X, centroid = NULL, znorm = FALSE, ..., error.check
 
     if (is.null(centroid)) {
         if (!different_lengths(Xz)) {
-            A <- do.call(rbind, Xz, TRUE) # use all
+            A <- call_rbind(Xz) # use all
         }
         else {
             centroid <- Xz[[sample(length(Xz), 1L)]] # random choice as reference
             A <- lapply(Xz, function(a) { SBD(centroid, a)$yshift })
-            A <- do.call(rbind, A, TRUE)
+            A <- call_rbind(A)
         }
     }
     else {
         centroid <- zscore(centroid, ..., error.check = FALSE) # use given reference
         A <- lapply(Xz, function(a) { SBD(centroid, a)$yshift })
-        A <- do.call(rbind, A, TRUE)
+        A <- call_rbind(A)
     }
 
     Y <- zscore(A, ..., error.check = FALSE)

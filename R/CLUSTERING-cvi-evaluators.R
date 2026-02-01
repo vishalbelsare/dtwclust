@@ -17,12 +17,19 @@
 #' for picking. They always assume that no errors occurred.
 #'
 #' The scoring function takes the CVIs that are to be minimized and "inverts" them by taking their
-#' reciprocal so that maximization can be considered. Its ellipsis (`...`) is passed to [cvi()].
+#' reciprocal so that maximization can be considered uniformly for the purpose of majority voting.
+#' Its ellipsis (`...`) is passed to [cvi()].
 #'
 #' The picking function returns the best configuration if `return.objects` is `FALSE`, or a list
 #' with the chosen [TSClusters-class] object and the corresponding configuration otherwise.
 #'
 #' Refer to the examples in [compare_clusterings()].
+#'
+#' @note
+#'
+#' To avoid ambiguity, if this function is used, configurations for both fuzzy and crisp clusterings
+#' should *not* be provided in the same call to [compare_clusterings()]. In such cases the scoring
+#' function may fail entirely, e.g. if it was created with `type = "valid"`.
 #'
 #' @return A list with two functions: `score` and `pick`.
 #'
@@ -55,16 +62,23 @@ cvi_evaluators <- function(type = "valid", fuzzy = FALSE, ground.truth = NULL) {
             stop("The ground.truth is needed for external CVIs.")
     }
 
+    internal <- intersect(type, internal)
+    external <- intersect(type, external)
+
+    if (any(c(internal, external) %in% minimize)) {
+        message("Some of the chosen CVIs are to be minized,",
+                " but their values will be inverted by the scoring function.",
+                " See this function's documentation for more details,",
+                " and use suppressMessages to avoid this message.")
+    }
+
     majority <- function(x) {
         ux <- unique(x)
         ux[which.max(tabulate(match(x, ux)))]
     }
 
     score <- function(objs, ...) {
-        do.call(rbind, lapply(objs, function(obj) {
-            internal <- intersect(type, internal)
-            external <- intersect(type, external)
-
+        call_rbind(lapply(objs, function(obj) {
             if (length(internal) > 0L)
                 cvis <- cvi(a = obj, type = internal, ...)
             else
@@ -101,7 +115,7 @@ cvi_evaluators <- function(type = "valid", fuzzy = FALSE, ground.truth = NULL) {
         best_overall <- Map(results, best_by_type, f = function(result, row_id) {
             result[row_id, type, drop = FALSE]
         })
-        best_overall <- do.call(rbind, best_overall)
+        best_overall <- call_rbind(best_overall)
         best_overall <- apply(best_overall, 2L, which.max)
         if (length(type) > 1L && length(unique(best_overall)) == length(best_overall))
             stop("All votes are distinct, so majority voting is inconclusive.")

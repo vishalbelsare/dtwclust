@@ -1,14 +1,15 @@
 
-## Update to version
+## Update to version 6.0.0
+* Update Makevars for ARM version of Windows.
+* Internal optimizations of do.call usages.
 
 ## Test environments
 * Local GNU/Linux, R release
-* Local Windows 10, R release
 * win-builder (devel and release)
-* Travis CI
+* GitHub CI
   + Linux: devel and release
   + OSX: release
-* AppVeyor (x32 and x64)
+  + Windows: release
 
 ## R CMD check results
 * There were no ERRORs or WARNINGs
